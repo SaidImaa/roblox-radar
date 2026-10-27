@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Radar · Jeux Roblox en plein essor</title>
+  <meta name="description" content="Les jeux Roblox qui décollent, repérés en continu : pics de joueurs, croissance, concepts en vogue.">
+  <meta name="theme-color" content="#06080c">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%2306080c' stroke='%23c6ff3d' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23c6ff3d' stroke-opacity='.5' stroke-width='1.5'/%3E%3Cpath d='M16 16 L16 2 A14 14 0 0 1 28 9 Z' fill='%23c6ff3d' fill-opacity='.45'/%3E%3Ccircle cx='22' cy='11' r='2.5' fill='%23ff3d6e'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true"><div class="backdrop-grid"></div><div class="backdrop-glow"></div></div>
+
+  <header class="topbar">
+    <a class="brand" href="#radar" aria-label="Radar, accueil">
+      <span class="brand-mark" aria-hidden="true"><i></i></span>
+      <span class="brand-text"><b>RADAR</b><small>Roblox</small></span>
+    </a>
+    <nav class="tabs" id="tabs" aria-label="Sections">
+      <a href="#radar" data-tab="radar">Radar</a>
+      <a href="#tiers" data-tab="tiers">Tier list</a>
+      <a href="#classement" data-tab="classement">Classement</a>
+      <a href="#tendances" data-tab="tendances">Tendances</a>
+    </nav>
+    <div class="live" id="live" title="Dernière collecte des données">
+      <span class="live-dot"></span><span id="live-text">Connexion…</span>
+    </div>
+  </header>
+
+  <div class="filters" id="filters">
+    <label class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="f-search" type="search" placeholder="Rechercher un jeu, un créateur, un mot-clé…" autocomplete="off">
+      <kbd>/</kbd>
+    </label>
+    <div class="seg" id="f-age" role="group" aria-label="Âge maximum">
+      <span class="seg-label">Sortis depuis</span>
+      <button data-v="7">7 j</button><button data-v="14">14 j</button><button data-v="28">28 j</button><button data-v="60">Tout</button>
+    </div>
+    <div class="seg" id="f-min" role="group" aria-label="Joueurs minimum">
+      <span class="seg-label">Pic</span>
+      <button data-v="0">Tous</button><button data-v="1000">1k+</button><button data-v="10000">10k+</button><button data-v="50000">50k+</button>
+    </div>
+    <div class="select">
+      <select id="f-genre" aria-label="Genre"><option value="">Tous les genres</option></select>
+    </div>
+    <button class="reset" id="f-reset" hidden>Réinitialiser</button>
+  </div>
+
+  <main id="view" class="view" aria-live="polite"></main>
+
+  <footer class="footer">
+    <span>Données : API publiques Roblox · collecte toutes les 30 min</span>
+    <span id="footer-gen"></span>
+  </footer>
+
+  <div class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-scrim" data-close></div>
+    <section class="drawer-panel" role="dialog" aria-modal="true" aria-label="Fiche du jeu">
+      <div id="drawer-body"></div>
+    </section>
+  </div>
+
+  <div class="tooltip" id="tooltip" role="tooltip"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
