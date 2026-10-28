@@ -24,6 +24,9 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      # La recherche Roblox refuse les machines partagées de GitHub (HTTP 429) : désactivée ici.
+      # Les classements par pays et par appareil couvrent déjà les jeux récents qu'elle trouvait.
+      SEARCH_PER_RUN: "0"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

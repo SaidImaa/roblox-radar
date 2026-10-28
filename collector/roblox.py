@@ -25,7 +25,7 @@ RETRYABLE = {429, 500, 502, 503, 504}
 MIN_INTERVAL = 0.35  # secondes entre deux requêtes, pour rester sous les limites de Roblox
 
 # Les listes de découverte (classements, recherche) ne sont pas indispensables : appels courts,
-# et un service qui échoue QUICK_STRIKES fois est mis en pause pour le reste du passage.
+# et un service (endpoint) qui échoue QUICK_STRIKES fois est mis en pause pour le reste du passage.
 QUICK_STRIKES = 3
 
 # Paquets de jeux qui n'ont pas pu être relevés pendant ce passage (le reste continue).
@@ -36,9 +36,9 @@ _strikes = Counter()
 
 def _get(url, params, retries=6, quick=False):
     global _last_request
-    host = urlparse(url).netloc
-    if quick and _strikes[host] >= QUICK_STRIKES:
-        raise RuntimeError(f"{host} en pause pour ce passage (trop d'échecs)")
+    service = urlparse(url).netloc + urlparse(url).path
+    if quick and _strikes[service] >= QUICK_STRIKES:
+        raise RuntimeError(f"{service} en pause pour ce passage (trop d'échecs)")
     if quick:
         retries = 2
     error = None
@@ -65,7 +65,7 @@ def _get(url, params, retries=6, quick=False):
         if attempt < retries - 1:
             time.sleep(delay)
     if quick:
-        _strikes[host] += 1
+        _strikes[service] += 1
     raise error
 
 

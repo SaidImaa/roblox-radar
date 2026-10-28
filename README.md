@@ -14,7 +14,8 @@ Toutes les 30 minutes, `python -m collector` :
    - les versions par pays (12 pays) et par appareil (PC, téléphones, tablette, console)
      d'Up-and-Coming et Top Trending, où beaucoup de jeux percent d'abord ;
    - la recherche Roblox par mots-clés (jeux à 1 000+ joueurs), 10 mots-clés par passage en rotation,
-     comme filet de sécurité : les classements s'arrêtent vers le 100e jeu ;
+     comme filet de sécurité : les classements s'arrêtent vers le 100e jeu. Roblox la refuse depuis
+     les machines de GitHub (HTTP 429), elle n'est donc active qu'en local (`SEARCH_PER_RUN=0` dans le workflow) ;
 2. garde tous les jeux d'**Up-and-Coming** (publiés il y a moins de 28 jours) et, ailleurs,
    seulement ceux de moins de 60 jours ;
 3. relève joueurs, visites, favoris, likes, icône et captures, et enregistre un snapshot ;
