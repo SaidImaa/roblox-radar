@@ -1,7 +1,7 @@
 """Collecteur Roblox Radar. Lancer avec : python -m collector
 
 À chaque passage :
-1. découvre les jeux dans les classements Roblox (charts) ;
+1. découvre les jeux dans les classements Roblox (monde, pays, appareils) et la recherche ;
 2. relève les stats de tous les jeux suivis et enregistre un snapshot ;
 3. recalcule pic, croissance 24 h, score et tier ;
 4. envoie une alerte Discord quand un jeu monte en tier S ou A.
@@ -20,25 +20,51 @@ def log(msg=""):
     print(msg, flush=True)
 
 
-def discover(errors):
-    """Parcourt les classements. Renvoie {universe_id: {"sources": set, "trusted": bool}}."""
+def search_keywords(now):
+    """Mots-clés de recherche de ce passage : la liste complète est couverte par rotation."""
+    kws, n = config.SEARCH_KEYWORDS, config.SEARCH_PER_RUN
+    if not kws or n <= 0:
+        return []
+    groups = -(-len(kws) // n)
+    start = (int(now.timestamp() // 1800) % groups) * n
+    return kws[start:start + n]
+
+
+def discover(errors, now):
+    """Classements (monde, pays, appareils) + recherche.
+    Renvoie ({universe_id: {"sources": set, "trusted": bool}}, nombre de listes lues)."""
     seen = {}
+    lists = 0
+
+    def add(label, trusted, fetch, *args):
+        nonlocal lists
+        try:
+            entries = fetch(*args)
+        except Exception as e:
+            errors.append(f"{label} : {e}")
+            return
+        lists += 1
+        for entry in entries:
+            # Emplacement publicitaire acheté : pas une tendance organique.
+            if entry.get("isSponsored"):
+                continue
+            info = seen.setdefault(entry["universeId"], {"sources": set(), "trusted": False})
+            info["sources"].add(label)
+            info["trusted"] |= trusted
+
     for country in config.COUNTRIES:
         for sort_id in config.TRUSTED_NEW_SORTS + config.DISCOVERY_SORTS:
-            try:
-                entries = roblox.get_sort(sort_id, country)
-            except Exception as e:
-                errors.append(f"classement {sort_id}/{country} : {e}")
-                continue
             label = sort_id if country == "all" else f"{sort_id}@{country}"
-            for entry in entries:
-                # Emplacement publicitaire acheté : pas une tendance organique.
-                if entry.get("isSponsored"):
-                    continue
-                info = seen.setdefault(entry["universeId"], {"sources": set(), "trusted": False})
-                info["sources"].add(label)
-                info["trusted"] |= sort_id in config.TRUSTED_NEW_SORTS
-    return seen
+            add(label, sort_id in config.TRUSTED_NEW_SORTS, roblox.get_sort, sort_id, country)
+    for sort_id in config.REGIONAL_SORTS:
+        trusted = sort_id in config.TRUSTED_NEW_SORTS
+        for country in config.REGIONAL_COUNTRIES:
+            add(f"{sort_id}@{country}", trusted, roblox.get_sort, sort_id, country)
+        for device in config.DEVICES:
+            add(f"{sort_id}#{device}", trusted, roblox.get_sort, sort_id, "all", device)
+    for kw in search_keywords(now):
+        add(f"search:{kw}", False, roblox.search_games, kw, config.SEARCH_PAGES, config.SEARCH_MIN_PLAYERS)
+    return seen, lists
 
 
 def snapshots_24h_ago(db, ids, now):
@@ -145,8 +171,8 @@ def run():
     db.init_schema()
 
     # 1. Découverte
-    seen = discover(errors)
-    log(f"Découverte : {len(seen)} jeux dans {len(config.TRUSTED_NEW_SORTS) + len(config.DISCOVERY_SORTS)} classements")
+    seen, lists = discover(errors, now)
+    log(f"Découverte : {len(seen)} jeux dans {lists} listes (classements monde, pays, appareils et recherche)")
 
     # 2. Relevé des stats
     known = {r["universe_id"]: r for r in db.query("SELECT * FROM games")}
@@ -160,7 +186,7 @@ def run():
         created = to_dt(d.get("created")) or now
         is_new = uid not in known
         # Un vieux jeu populaire (Brookhaven...) ne nous intéresse pas, sauf s'il sort d'up-and-coming.
-        if is_new and not seen[uid]["trusted"] and (now - created).days > config.MAX_AGE_DAYS:
+        if is_new and not seen.get(uid, {}).get("trusted") and (now - created).days > config.MAX_AGE_DAYS:
             continue
         games[uid] = d
     new_ids = [uid for uid in games if uid not in known]

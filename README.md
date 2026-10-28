@@ -8,8 +8,13 @@ et un dashboard web publié sur GitHub Pages.
 
 Toutes les 30 minutes, `python -m collector` :
 
-1. lit les classements de roblox.com/charts (`up-and-coming`, `top-trending`, `top-playing-now`
-   et les tendances par genre) ;
+1. découvre les jeux par trois voies :
+   - les classements mondiaux de roblox.com/charts (`up-and-coming`, `top-trending`, `top-playing-now`
+     et les tendances par genre) ;
+   - les versions par pays (12 pays) et par appareil (PC, téléphones, tablette, console)
+     d'Up-and-Coming et Top Trending, où beaucoup de jeux percent d'abord ;
+   - la recherche Roblox par mots-clés (jeux à 1 000+ joueurs), 10 mots-clés par passage en rotation,
+     comme filet de sécurité : les classements s'arrêtent vers le 100e jeu ;
 2. garde tous les jeux d'**Up-and-Coming** (publiés il y a moins de 28 jours) et, ailleurs,
    seulement ceux de moins de 60 jours ;
 3. relève joueurs, visites, favoris, likes, icône et captures, et enregistre un snapshot ;
@@ -24,7 +29,7 @@ Toutes les 30 minutes, `python -m collector` :
 | B | pic ≥ 10 000 avant 28 jours, ou ≥ 5 000 joueurs et x2 en 24 h |
 | C | à surveiller |
 
-Les autres réglages (classements, pays, âge maximum, alertes) sont dans `collector/config.py`
+Les autres réglages (classements, pays, appareils, mots-clés, âge maximum, alertes) sont dans `collector/config.py`
 et peuvent être surchargés par variables d'environnement.
 
 ## Tester en local
@@ -78,7 +83,7 @@ Un site statique (HTML, CSS, JavaScript, sans framework) dans `site/` :
 - **Fiche jeu** : stats, courbes des joueurs (24 h / 7 j / 30 j) et des visites, détail du score,
   captures, description, lien Roblox. Chaque fiche a son lien (`#jeu-<id>`).
 
-Recherche (touche `/`), âge, pic minimum et genre filtrent toutes les pages. La page se met à jour
+Recherche (touche `/`), âge, joueurs connectés (1 000+ par défaut) et genre filtrent toutes les pages. La page se met à jour
 toute seule quand de nouvelles données sont publiées.
 
 ## À savoir

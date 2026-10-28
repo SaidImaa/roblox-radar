@@ -13,6 +13,7 @@ GAMES_URL = "https://games.roblox.com/v1/games"
 VOTES_URL = "https://games.roblox.com/v1/games/votes"
 ICONS_URL = "https://thumbnails.roblox.com/v1/games/icons"
 THUMBNAILS_URL = "https://thumbnails.roblox.com/v1/games/multiget/thumbnails"
+SEARCH_URL = "https://apis.roblox.com/search-api/omni-search"
 
 _session = requests.Session()
 _session.headers["User-Agent"] = "roblox-radar/1.0"
@@ -80,12 +81,34 @@ def get_sort(sort_id, country="all", device="all"):
     return data.get("games") or []
 
 
+def search_games(query, pages=4, min_players=0):
+    """Jeux renvoyés par la recherche Roblox (paginée, non documentée elle aussi)."""
+    out = []
+    token = None
+    for _ in range(pages):
+        params = {"searchQuery": query, "sessionId": _session_id, "pageType": "all"}
+        if token:
+            params["pageToken"] = token
+        data = _get(SEARCH_URL, params)
+        for group in data.get("searchResults", []):
+            if group.get("contentGroupType") != "Game":
+                continue
+            out += [g for g in group.get("contents", []) if g.get("playerCount", 0) >= min_players]
+        token = data.get("nextPageToken")
+        if not token:
+            break
+    return out
+
+
 def get_games(universe_ids):
     """Détails par universeId : playing, visits, created, creator, genre_l1/l2..."""
+    wanted = set(universe_ids)
     out = {}
     for data in _batched(GAMES_URL, universe_ids, 50):
+        # Roblox renvoie parfois une entrée vide (id 0) pour un jeu supprimé ou modéré.
         for g in data.get("data", []):
-            out[g["id"]] = g
+            if g.get("id") in wanted:
+                out[g["id"]] = g
     return out
 
 

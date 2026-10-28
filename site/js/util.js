@@ -72,14 +72,22 @@ const GENRE_FR = {
 };
 export const genreFr = (g) => GENRE_FR[g] || g || "Autres";
 
+const DEVICE_FR = {
+  computer: "PC", high_end_phone: "téléphone", low_end_phone: "petit téléphone",
+  high_end_tablet: "tablette", low_end_tablet: "petite tablette", console: "console", vr: "VR",
+};
+
 export function sourceLabel(s) {
-  const [id, country] = s.split("@");
+  if (s.startsWith("search:")) return `Recherche « ${s.slice(7)} »`;
+  const [rest, device] = s.split("#");
+  const [id, country] = rest.split("@");
   const names = { "up-and-coming": "Up-and-Coming", "top-trending": "Top Trending", "top-playing-now": "Top Playing Now" };
   let label = names[id];
   if (!label && id.startsWith("trending-in-")) {
     label = "Tendance " + id.slice(12).replace(/-and-/g, " & ").replace(/-/g, " ");
   }
-  return (label || id) + (country ? ` (${country.toUpperCase()})` : "");
+  const where = [country?.toUpperCase(), device && (DEVICE_FR[device] || device)].filter(Boolean).join(", ");
+  return (label || id) + (where ? ` (${where})` : "");
 }
 
 // ---------- Infobulle ----------

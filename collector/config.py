@@ -33,8 +33,27 @@ DISCOVERY_SORTS = _list("DISCOVERY_SORTS", [
     "trending-in-puzzle",
     "trending-in-rpg",
 ])
-# "all" = monde entier. Ajouter "fr", "us", "br"... pour voir aussi les tendances locales.
+# "all" = monde entier : tous les classements ci-dessus sont lus dans leur version mondiale.
 COUNTRIES = _list("COUNTRIES", ["all"])
+
+# Beaucoup de jeux percent d'abord dans un pays ou sur un type d'appareil avant le classement mondial.
+# Pour ceux-là, on lit aussi les versions par pays et par appareil de ces classements.
+REGIONAL_SORTS = _list("REGIONAL_SORTS", ["up-and-coming", "top-trending"])
+REGIONAL_COUNTRIES = _list("REGIONAL_COUNTRIES", ["us", "br", "ph", "id", "mx", "fr", "de", "gb", "tr", "th", "vn", "es"])
+DEVICES = _list("DEVICES", ["computer", "high_end_phone", "low_end_phone", "high_end_tablet", "console"])
+
+# Filet de sécurité : la recherche Roblox descend bien plus bas que les classements (~100 jeux).
+# Chaque passage lance SEARCH_PER_RUN mots-clés et tourne sur la liste complète (un tour toutes les 2 h).
+SEARCH_KEYWORDS = _list("SEARCH_KEYWORDS", [
+    "simulator", "tycoon", "obby", "steal", "brainrot", "grow", "evolution", "+1", "escape", "horror",
+    "anime", "fight", "rng", "tower", "survive", "pet", "egg", "car", "roleplay", "battle",
+    "merge", "clicker", "hatch", "farm", "fish", "zombie", "ragdoll", "tsunami", "garden", "incremental",
+    "hide", "run", "story", "prison", "school", "build", "craft", "defense", "pvp", "squid",
+])
+SEARCH_PER_RUN = int(os.environ.get("SEARCH_PER_RUN", 10))
+SEARCH_PAGES = int(os.environ.get("SEARCH_PAGES", 4))
+# La recherche renvoie énormément de petits jeux : on ne garde que ceux qui ont déjà des joueurs.
+SEARCH_MIN_PLAYERS = int(os.environ.get("SEARCH_MIN_PLAYERS", 1000))
 
 MAX_AGE_DAYS = int(os.environ.get("MAX_AGE_DAYS", 60))
 # Un jeu trop vieux qui n'apparaît plus dans aucun classement depuis N jours n'est plus suivi.

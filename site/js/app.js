@@ -8,7 +8,8 @@ import { radarSVG } from "./radar.js";
 
 const TABS = ["radar", "tiers", "classement", "tendances"];
 const TIERS = ["S", "A", "B", "C"];
-const DEFAULT_FILTERS = { q: "", age: 60, min: 0, genre: "" };
+// Par défaut : les jeux qui ont au moins 1 000 joueurs connectés en ce moment.
+const DEFAULT_FILTERS = { q: "", age: 60, players: 1000, genre: "" };
 const REFRESH_MS = 5 * 60 * 1000;
 
 const state = {
@@ -28,7 +29,9 @@ const drawer = $("#drawer");
 const drawerBody = $("#drawer-body");
 
 try {
-  Object.assign(state.filters, JSON.parse(localStorage.getItem("radar.filters") || "{}"));
+  const saved = JSON.parse(localStorage.getItem("radar.filters") || "{}");
+  delete saved.min; // ancien filtre sur le pic, remplacé par les joueurs connectés
+  Object.assign(state.filters, saved);
 } catch { /* stockage indisponible : filtres par défaut */ }
 
 // ---------------------------------------------------------------- données
@@ -65,11 +68,11 @@ async function load() {
 }
 
 function filtered() {
-  const { q, age, min, genre } = state.filters;
+  const { q, age, players, genre } = state.filters;
   const needle = q.trim().toLowerCase();
   return state.data.games.filter((g) =>
     (age >= 60 || (g.age ?? 999) <= age) &&
-    (g.peak ?? 0) >= min &&
+    (g.playing ?? 0) >= players &&
     (!genre || g.genre === genre) &&
     (!needle || g.search.includes(needle)));
 }
@@ -107,7 +110,7 @@ function rowItem(g, right) {
 const empty = (title, text) => `<div class="empty"><b>${title}</b><span>${text}</span></div>`;
 
 function noResult() {
-  return `<div class="state"><h1>Aucun jeu ne correspond</h1><p>Élargis l'âge, baisse le pic minimum ou efface la recherche.</p>
+  return `<div class="state"><h1>Aucun jeu ne correspond</h1><p>Élargis l'âge, baisse le nombre de joueurs minimum ou efface la recherche.</p>
     <p><button class="btn" data-reset>Réinitialiser les filtres</button></p></div>`;
 }
 
@@ -415,8 +418,14 @@ function drawerHTML(g) {
       <div class="fact"><span>Repéré par le radar</span><b>${dateLabel(g.firstSeen, true)}</b></div>
       <div class="fact"><span>Pic atteint le</span><b>${dateLabel(g.peakAt, true)}</b></div>
       <div class="fact"><span>Créateur</span><b>${esc(g.creator || "?")}${g.creatorType === "Group" ? " (groupe)" : ""}</b></div>
-      <div class="fact" style="grid-column:1/-1"><span>Vu dans</span><b>${g.sources.map(sourceLabel).map(esc).join(" · ") || "—"}</b></div>
+      <div class="fact" style="grid-column:1/-1"><span>Vu dans</span><b>${sourcesLabel(g.sources)}</b></div>
     </div></div>`;
+}
+
+function sourcesLabel(sources) {
+  if (!sources.length) return "—";
+  const shown = sources.slice(0, 6).map(sourceLabel).map(esc).join(" · ");
+  return sources.length > 6 ? `${shown} · +${sources.length - 6} autres` : shown;
 }
 
 function renderCharts() {
@@ -486,7 +495,7 @@ function renderFilters() {
   const f = state.filters;
   $("#f-search").value !== f.q && ($("#f-search").value = f.q);
   $$("#f-age button").forEach((b) => b.classList.toggle("on", +b.dataset.v === f.age));
-  $$("#f-min button").forEach((b) => b.classList.toggle("on", +b.dataset.v === f.min));
+  $$("#f-players button").forEach((b) => b.classList.toggle("on", +b.dataset.v === f.players));
   $("#f-genre").value = f.genre;
   $("#f-reset").hidden = JSON.stringify(f) === JSON.stringify(DEFAULT_FILTERS);
   try { localStorage.setItem("radar.filters", JSON.stringify(f)); } catch { /* ignoré */ }
@@ -621,7 +630,7 @@ $("#f-search").addEventListener("input", (e) => {
   searchTimer = setTimeout(() => setFilters({ q: e.target.value }), 140);
 });
 $("#f-age").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setFilters({ age: Number(b.dataset.v) }); });
-$("#f-min").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setFilters({ min: Number(b.dataset.v) }); });
+$("#f-players").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setFilters({ players: Number(b.dataset.v) }); });
 $("#f-genre").addEventListener("change", (e) => setFilters({ genre: e.target.value }));
 window.addEventListener("hashchange", route);
 
