@@ -55,6 +55,9 @@ SEARCH_PAGES = int(os.environ.get("SEARCH_PAGES", 4))
 # La recherche renvoie énormément de petits jeux : on ne garde que ceux qui ont déjà des joueurs.
 SEARCH_MIN_PLAYERS = int(os.environ.get("SEARCH_MIN_PLAYERS", 1000))
 
+# Temps maximum consacré à la découverte ; au-delà, on relève les stats avec ce qu'on a trouvé.
+DISCOVERY_BUDGET_SECONDS = int(os.environ.get("DISCOVERY_BUDGET_SECONDS", 240))
+
 MAX_AGE_DAYS = int(os.environ.get("MAX_AGE_DAYS", 60))
 # Un jeu trop vieux qui n'apparaît plus dans aucun classement depuis N jours n'est plus suivi.
 STOP_TRACKING_AFTER_DAYS = int(os.environ.get("STOP_TRACKING_AFTER_DAYS", 3))

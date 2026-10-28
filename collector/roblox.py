@@ -5,6 +5,8 @@ documentés officiellement et peuvent changer. Tout ce qui en dépend est ici.
 """
 import time
 import uuid
+from collections import Counter
+from urllib.parse import urlparse
 
 import requests
 
@@ -22,22 +24,32 @@ _session_id = str(uuid.uuid4())
 RETRYABLE = {429, 500, 502, 503, 504}
 MIN_INTERVAL = 0.35  # secondes entre deux requêtes, pour rester sous les limites de Roblox
 
+# Les listes de découverte (classements, recherche) ne sont pas indispensables : appels courts,
+# et un service qui échoue QUICK_STRIKES fois est mis en pause pour le reste du passage.
+QUICK_STRIKES = 3
+
 # Paquets de jeux qui n'ont pas pu être relevés pendant ce passage (le reste continue).
 warnings = []
 _last_request = 0.0
+_strikes = Counter()
 
 
-def _get(url, params, retries=6):
+def _get(url, params, retries=6, quick=False):
     global _last_request
+    host = urlparse(url).netloc
+    if quick and _strikes[host] >= QUICK_STRIKES:
+        raise RuntimeError(f"{host} en pause pour ce passage (trop d'échecs)")
+    if quick:
+        retries = 2
     error = None
     for attempt in range(retries):
         wait = MIN_INTERVAL - (time.monotonic() - _last_request)
         if wait > 0:
             time.sleep(wait)
         _last_request = time.monotonic()
-        delay = min(60, 3 * 2 ** attempt)
+        delay = 4 if quick else min(60, 3 * 2 ** attempt)
         try:
-            r = _session.get(url, params=params, timeout=20)
+            r = _session.get(url, params=params, timeout=10 if quick else 20)
         except requests.RequestException as e:
             error = e
         else:
@@ -48,10 +60,12 @@ def _get(url, params, retries=6):
             error = RuntimeError(f"HTTP {r.status_code} sur {url}")
             # Roblox indique parfois combien de temps attendre avant de réessayer.
             retry_after = r.headers.get("Retry-After", "")
-            if retry_after.isdigit():
+            if retry_after.isdigit() and not quick:
                 delay = min(120, int(retry_after) + 1)
         if attempt < retries - 1:
             time.sleep(delay)
+    if quick:
+        _strikes[host] += 1
     raise error
 
 
@@ -77,7 +91,7 @@ def get_sort(sort_id, country="all", device="all"):
         "sortId": sort_id,
         "device": device,
         "country": country,
-    })
+    }, quick=True)
     return data.get("games") or []
 
 
@@ -89,7 +103,7 @@ def search_games(query, pages=4, min_players=0):
         params = {"searchQuery": query, "sessionId": _session_id, "pageType": "all"}
         if token:
             params["pageToken"] = token
-        data = _get(SEARCH_URL, params)
+        data = _get(SEARCH_URL, params, quick=True)
         for group in data.get("searchResults", []):
             if group.get("contentGroupType") != "Game":
                 continue

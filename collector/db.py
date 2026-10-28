@@ -61,6 +61,12 @@ SCHEMA = [
     """,
     "CREATE INDEX IF NOT EXISTS snapshots_ts_idx ON snapshots (ts)",
     """
+    CREATE TABLE IF NOT EXISTS ignored (
+        universe_id BIGINT PRIMARY KEY,
+        created_at TIMESTAMPTZ
+    )
+    """,
+    """
     CREATE TABLE IF NOT EXISTS runs (
         ts TIMESTAMPTZ PRIMARY KEY,
         discovered INTEGER,
@@ -79,6 +85,7 @@ POSTGRES_ONLY = [
     "ALTER TABLE games ENABLE ROW LEVEL SECURITY",
     "ALTER TABLE snapshots ENABLE ROW LEVEL SECURITY",
     "ALTER TABLE runs ENABLE ROW LEVEL SECURITY",
+    "ALTER TABLE ignored ENABLE ROW LEVEL SECURITY",
 ]
 
 

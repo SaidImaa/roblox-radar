@@ -33,37 +33,49 @@ def search_keywords(now):
 def discover(errors, now):
     """Classements (monde, pays, appareils) + recherche.
     Renvoie ({universe_id: {"sources": set, "trusted": bool}}, nombre de listes lues)."""
-    seen = {}
-    lists = 0
-
-    def add(label, trusted, fetch, *args):
-        nonlocal lists
-        try:
-            entries = fetch(*args)
-        except Exception as e:
-            errors.append(f"{label} : {e}")
-            return
-        lists += 1
-        for entry in entries:
-            # Emplacement publicitaire acheté : pas une tendance organique.
-            if entry.get("isSponsored"):
-                continue
-            info = seen.setdefault(entry["universeId"], {"sources": set(), "trusted": False})
-            info["sources"].add(label)
-            info["trusted"] |= trusted
-
+    world, regional, search = [], [], []
     for country in config.COUNTRIES:
         for sort_id in config.TRUSTED_NEW_SORTS + config.DISCOVERY_SORTS:
             label = sort_id if country == "all" else f"{sort_id}@{country}"
-            add(label, sort_id in config.TRUSTED_NEW_SORTS, roblox.get_sort, sort_id, country)
+            world.append((label, sort_id in config.TRUSTED_NEW_SORTS, roblox.get_sort, (sort_id, country)))
     for sort_id in config.REGIONAL_SORTS:
         trusted = sort_id in config.TRUSTED_NEW_SORTS
         for country in config.REGIONAL_COUNTRIES:
-            add(f"{sort_id}@{country}", trusted, roblox.get_sort, sort_id, country)
+            regional.append((f"{sort_id}@{country}", trusted, roblox.get_sort, (sort_id, country)))
         for device in config.DEVICES:
-            add(f"{sort_id}#{device}", trusted, roblox.get_sort, sort_id, "all", device)
+            regional.append((f"{sort_id}#{device}", trusted, roblox.get_sort, (sort_id, "all", device)))
     for kw in search_keywords(now):
-        add(f"search:{kw}", False, roblox.search_games, kw, config.SEARCH_PAGES, config.SEARCH_MIN_PLAYERS)
+        args = (kw, config.SEARCH_PAGES, config.SEARCH_MIN_PLAYERS)
+        search.append((f"search:{kw}", False, roblox.search_games, args))
+
+    seen = {}
+    lists = 0
+    started = time.monotonic()
+    for stage, calls in (("Classements monde", world), ("Pays et appareils", regional), ("Recherche", search)):
+        t0 = time.monotonic()
+        ok = failed = skipped = 0
+        for label, trusted, fetch, args in calls:
+            if time.monotonic() - started > config.DISCOVERY_BUDGET_SECONDS:
+                skipped += 1
+                continue
+            try:
+                entries = fetch(*args)
+            except Exception as e:
+                failed += 1
+                errors.append(f"{label} : {e}")
+                continue
+            ok += 1
+            for entry in entries:
+                # Emplacement publicitaire acheté : pas une tendance organique.
+                if entry.get("isSponsored"):
+                    continue
+                info = seen.setdefault(entry["universeId"], {"sources": set(), "trusted": False})
+                info["sources"].add(label)
+                info["trusted"] |= trusted
+        lists += ok
+        extra = f", {failed} en échec" if failed else ""
+        extra += f", {skipped} sautées (budget de temps)" if skipped else ""
+        log(f"  {stage} : {ok}/{len(calls)} listes en {time.monotonic() - t0:.0f} s{extra}")
     return seen, lists
 
 
@@ -176,19 +188,30 @@ def run():
 
     # 2. Relevé des stats
     known = {r["universe_id"]: r for r in db.query("SELECT * FROM games")}
-    poll_ids = set(seen) | {uid for uid, r in known.items() if r["tracking"]}
+    # Jeux déjà écartés car trop vieux : leur date de création ne change pas, inutile de les redemander.
+    ignored = {r["universe_id"] for r in db.query("SELECT universe_id FROM ignored")}
+    poll_ids = {uid for uid, info in seen.items() if info["trusted"] or uid not in ignored}
+    poll_ids |= {uid for uid, r in known.items() if r["tracking"]}
+    t0 = time.monotonic()
     details = roblox.get_games(poll_ids)
+    log(f"Relevé : {len(details)}/{len(poll_ids)} jeux en {time.monotonic() - t0:.0f} s")
     if poll_ids and not details:
         errors.append("aucun jeu relevé : Roblox limite peut-être les requêtes, nouvel essai au prochain passage")
 
     games = {}
+    too_old = []
     for uid, d in details.items():
         created = to_dt(d.get("created")) or now
         is_new = uid not in known
         # Un vieux jeu populaire (Brookhaven...) ne nous intéresse pas, sauf s'il sort d'up-and-coming.
         if is_new and not seen.get(uid, {}).get("trusted") and (now - created).days > config.MAX_AGE_DAYS:
+            too_old.append((uid, created))
             continue
         games[uid] = d
+    db.executemany(
+        "INSERT INTO ignored (universe_id, created_at) VALUES (%s, %s) ON CONFLICT (universe_id) DO NOTHING",
+        too_old,
+    )
     new_ids = [uid for uid in games if uid not in known]
     log(f"Suivis : {len(games)} jeux (dont {len(new_ids)} nouveaux)")
 
